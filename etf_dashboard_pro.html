@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 داشبورد زنده ETF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Tahoma, sans-serif;
+      background: #f5f7fa;
+      padding: 2rem;
+      direction: rtl;
+    }
+    h2 {
+      text-align: center;
+      color: #2b2b2b;
+    }
+    input {
+      padding: 10px;
+      width: 300px;
+      margin: 1rem auto;
+      display: block;
+      font-size: 1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background: #fff;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    th {
+      background: #007acc;
+      color: white;
+    }
+    .highlight {
+      background-color: #ffe6e6;
+    }
+    canvas {
+      max-width: 100%;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+<h2>📊 داشبورد زنده صندوق‌های ETF</h2>
+<input type="text" id="searchInput" placeholder="🔍 جستجو بر اساس نام صندوق..." />
+
+<table id="data-table">
+  <thead>
+    <tr>
+      <th>نام</th>
+      <th>نوع</th>
+      <th>قیمت</th>
+      <th>NAV</th>
+      <th>حجم</th>
+      <th>حباب (%)</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<canvas id="myChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const urls = [
+    { url: "https://tradersarena.ir/data/funds-nav/fixed-income-funds?_=1752654497904", type: "درآمد ثابت" },
+    { url: "https://tradersarena.ir/data/industries-stocks/stock-funds?_=1752654682367", type: "سهامی" },
+    { url: "https://tradersarena.ir/data/funds-nav/gold-funds?_=1752654627755", type: "طلا" }
+  ];
+
+  let allData = [];
+
+  async function fetchData() {
+    for (const item of urls) {
+      try {
+        const res = await fetch(item.url);
+        const json = await res.json();
+        const data = json.data || [];
+        data.forEach(fund => fund.type = item.type);
+        allData = allData.concat(data);
+      } catch (err) {
+        console.error("⛔ خطا در دریافت داده:", err);
+      }
+    }
+    renderTable(allData);
+    renderChart(allData);
+  }
+
+  function renderTable(data) {
+    const tbody = document.querySelector("tbody");
+    tbody.innerHTML = "";
+    const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+    data.forEach(item => {
+      if (!item.name || !item.name.toLowerCase().includes(keyword)) return;
+      const price = item.price || 0;
+      const nav = item.nav || 1;
+      const volume = item.volume || 0;
+      const bubble = ((price - nav) / nav * 100).toFixed(2);
+      const highlight = bubble > 5 ? "highlight" : "";
+
+      const row = `<tr class="${highlight}">
+        <td>${item.name}</td>
+        <td>${item.type}</td>
+        <td>${price.toLocaleString()}</td>
+        <td>${nav.toLocaleString()}</td>
+        <td>${volume.toLocaleString()}</td>
+        <td>${bubble}</td>
+      </tr>`;
+      tbody.innerHTML += row;
+    });
+  }
+
+  function renderChart(data) {
+    const ctx = document.getElementById("myChart").getContext("2d");
+    const sliced = data.slice(0, 10);
+    const labels = sliced.map(d => d.name);
+    const prices = sliced.map(d => d.price);
+    const navs = sliced.map(d => d.nav);
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'قیمت',
+            data: prices,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)'
+          },
+          {
+            label: 'NAV',
+            data: navs,
+            backgroundColor: 'rgba(255, 206, 86, 0.6)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  document.getElementById("searchInput").addEventListener("input", () => renderTable(allData));
+  fetchData();
+</script>
+
+</body>
+</html>
